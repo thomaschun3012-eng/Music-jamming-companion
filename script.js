@@ -144,8 +144,31 @@ function playSustainedChord(chord) {
     const notes = chordNotes[chord];
     if (!notes) return;
 
-    notes.forEach(note => {
-        playNote(note, audioContext.currentTime, 1.0);
+    // Play chord with added octave doubling for richness
+    const allNotes = [...notes, ...notes.map(note => note)]; // Double the notes for intensity
+    allNotes.forEach((note, index) => {
+        const octaveMultiplier = index < notes.length ? 1 : 2; // Higher octave for duplicates
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+
+        // Apply instrument-specific settings
+        switch (currentInstrument) {
+            case 'guitar': oscillator.type = 'square'; filter.frequency.setValueAtTime(2000, audioContext.currentTime); break;
+            case 'piano': oscillator.type = 'sine'; filter.frequency.setValueAtTime(3000, audioContext.currentTime); break;
+            case 'organ': oscillator.type = 'square'; filter.frequency.setValueAtTime(1500, audioContext.currentTime); break;
+            case 'strings': oscillator.type = 'sawtooth'; filter.frequency.setValueAtTime(2500, audioContext.currentTime); break;
+        }
+
+        oscillator.frequency.setValueAtTime(noteFreqs[note] * octaveMultiplier, audioContext.currentTime);
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.8);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 1.8);
     });
 }
 
@@ -153,9 +176,13 @@ function playArpeggioUp(chord) {
     const notes = chordNotes[chord];
     if (!notes) return;
 
-    const noteDuration = beatDuration / 1000 / 2; // Half beat per note
-    notes.forEach((note, index) => {
-        playNote(note, audioContext.currentTime + (index * noteDuration), noteDuration);
+    // Create a more intense arpeggio that fills the bar
+    const extendedNotes = [...notes, ...notes, ...notes]; // Repeat notes 3 times
+    const barDurationSeconds = barDuration / 1000;
+    const noteDuration = barDurationSeconds / extendedNotes.length; // Distribute evenly across bar
+
+    extendedNotes.forEach((note, index) => {
+        playNote(note, audioContext.currentTime + (index * noteDuration), noteDuration * 0.8);
     });
 }
 
@@ -163,10 +190,14 @@ function playArpeggioDown(chord) {
     const notes = chordNotes[chord];
     if (!notes) return;
 
+    // Create a more intense descending arpeggio that fills the bar
     const reversedNotes = [...notes].reverse();
-    const noteDuration = beatDuration / 1000 / 2; // Half beat per note
-    reversedNotes.forEach((note, index) => {
-        playNote(note, audioContext.currentTime + (index * noteDuration), noteDuration);
+    const extendedNotes = [...reversedNotes, ...reversedNotes, ...reversedNotes]; // Repeat 3 times
+    const barDurationSeconds = barDuration / 1000;
+    const noteDuration = barDurationSeconds / extendedNotes.length; // Distribute evenly across bar
+
+    extendedNotes.forEach((note, index) => {
+        playNote(note, audioContext.currentTime + (index * noteDuration), noteDuration * 0.8);
     });
 }
 
@@ -174,9 +205,13 @@ function playBrokenChord(chord) {
     const notes = chordNotes[chord];
     if (!notes) return;
 
-    const noteDuration = beatDuration / 1000 / 4; // Quarter beat per note
-    notes.forEach((note, index) => {
-        playNote(note, audioContext.currentTime + (index * noteDuration * 2), noteDuration);
+    // Create a more complex broken chord pattern that fills the bar
+    const extendedNotes = [...notes, ...notes, ...notes, ...notes]; // Repeat 4 times for intensity
+    const barDurationSeconds = barDuration / 1000;
+    const noteDuration = barDurationSeconds / extendedNotes.length; // Distribute evenly across bar
+
+    extendedNotes.forEach((note, index) => {
+        playNote(note, audioContext.currentTime + (index * noteDuration), noteDuration * 0.7);
     });
 }
 
@@ -184,12 +219,15 @@ function playStrummingPattern(chord) {
     const notes = chordNotes[chord];
     if (!notes) return;
 
-    // Down-up strumming pattern: down, up, down, up
-    const strumPattern = [0, 0.1, 0.2, 0.3]; // Time offsets in seconds
-    strumPattern.forEach((offset, index) => {
-        const noteIndex = index % notes.length;
-        playNote(notes[noteIndex], audioContext.currentTime + offset, 0.15);
-    });
+    // Create an intense strumming pattern that fills the bar
+    const barDurationSeconds = barDuration / 1000;
+    const strumCount = Math.floor(barDurationSeconds * 8); // 8 strums per second
+    const strumInterval = barDurationSeconds / strumCount;
+
+    for (let i = 0; i < strumCount; i++) {
+        const noteIndex = i % notes.length;
+        playNote(notes[noteIndex], audioContext.currentTime + (i * strumInterval), strumInterval * 0.8);
+    }
 }
 
 function playChord(chord) {
