@@ -7,11 +7,13 @@ let beatDuration = 60 / tempo * 1000;
 let barDuration = beatsPerBar * beatDuration;
 let isPlaying = false;
 let barIntervalId;
+let currentPattern = 'sustained';
 
 const chordDisplay = document.getElementById('current-chord');
 const barDisplay = document.getElementById('bar');
 const timeSigSelect = document.getElementById('timeSig');
 const tempoInput = document.getElementById('tempo');
+const patternSelect = document.getElementById('pattern');
 const startButton = document.getElementById('start');
 const stopButton = document.getElementById('stop');
 
@@ -49,22 +51,95 @@ const chordNotes = {
     'Am': ['A', 'C', 'E']
 };
 
-function playChord(chord) {
+function playNote(note, startTime, duration = 0.5) {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(noteFreqs[note] * 2, startTime);
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.15, startTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration);
+}
+
+function playSustainedChord(chord) {
     const notes = chordNotes[chord];
     if (!notes) return;
-    const oscillators = [];
+
     notes.forEach(note => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.frequency.setValueAtTime(noteFreqs[note] * 2, audioContext.currentTime); // Octave up for better sound
-        oscillator.type = 'sine';
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 1);
+        playNote(note, audioContext.currentTime, 1.0);
     });
+}
+
+function playArpeggioUp(chord) {
+    const notes = chordNotes[chord];
+    if (!notes) return;
+
+    const noteDuration = beatDuration / 1000 / 2; // Half beat per note
+    notes.forEach((note, index) => {
+        playNote(note, audioContext.currentTime + (index * noteDuration), noteDuration);
+    });
+}
+
+function playArpeggioDown(chord) {
+    const notes = chordNotes[chord];
+    if (!notes) return;
+
+    const reversedNotes = [...notes].reverse();
+    const noteDuration = beatDuration / 1000 / 2; // Half beat per note
+    reversedNotes.forEach((note, index) => {
+        playNote(note, audioContext.currentTime + (index * noteDuration), noteDuration);
+    });
+}
+
+function playBrokenChord(chord) {
+    const notes = chordNotes[chord];
+    if (!notes) return;
+
+    const noteDuration = beatDuration / 1000 / 4; // Quarter beat per note
+    notes.forEach((note, index) => {
+        playNote(note, audioContext.currentTime + (index * noteDuration * 2), noteDuration);
+    });
+}
+
+function playStrummingPattern(chord) {
+    const notes = chordNotes[chord];
+    if (!notes) return;
+
+    // Down-up strumming pattern: down, up, down, up
+    const strumPattern = [0, 0.1, 0.2, 0.3]; // Time offsets in seconds
+    strumPattern.forEach((offset, index) => {
+        const noteIndex = index % notes.length;
+        playNote(notes[noteIndex], audioContext.currentTime + offset, 0.15);
+    });
+}
+
+function playChord(chord) {
+    switch (currentPattern) {
+        case 'sustained':
+            playSustainedChord(chord);
+            break;
+        case 'arpeggio':
+            playArpeggioUp(chord);
+            break;
+        case 'arpeggio-down':
+            playArpeggioDown(chord);
+            break;
+        case 'broken':
+            playBrokenChord(chord);
+            break;
+        case 'strumming':
+            playStrummingPattern(chord);
+            break;
+        default:
+            playSustainedChord(chord);
+    }
 }
 
 function updateDisplay() {
@@ -120,6 +195,10 @@ function stop() {
     isPlaying = false;
     clearInterval(barIntervalId);
 }
+
+patternSelect.addEventListener('change', (e) => {
+    currentPattern = e.target.value;
+});
 
 startButton.addEventListener('click', start);
 stopButton.addEventListener('click', stop);
