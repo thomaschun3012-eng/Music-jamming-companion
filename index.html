@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Jamming Companion</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Music Jamming Companion</h1>
+    <div class="controls">
+        <label for="timeSig">Time Signature:</label>
+        <select id="timeSig">
+            <option value="4">4/4</option>
+            <option value="3">3/4</option>
+        </select>
+        <label for="tempo">Tempo (BPM):</label>
+        <input type="number" id="tempo" value="120" min="60" max="200">
+        <button id="start">Start</button>
+        <button id="stop">Stop</button>
+    </div>
+    <div class="display">
+        <div id="current-chord">F</div>
+        <div id="upcoming">
+            <div class="upcoming-chord">Next: Bb (2)</div>
+            <div class="upcoming-chord">Then: C (1)</div>
+            <div class="upcoming-chord">Then: Dm (2)</div>
+        </div>
+        <div id="bar">Bar: 1</div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
