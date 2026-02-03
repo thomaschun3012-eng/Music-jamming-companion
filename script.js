@@ -27,6 +27,7 @@ let barIntervalId;
 let currentPattern = 'sustained';
 let currentInstrument = 'guitar';
 let currentProgression = 'random';
+let currentDrums = 'off';
 let progressionIndex = 0;
 
 const chordDisplay = document.getElementById('current-chord');
@@ -36,6 +37,7 @@ const tempoInput = document.getElementById('tempo');
 const instrumentSelect = document.getElementById('instrument');
 const patternSelect = document.getElementById('pattern');
 const progressionSelect = document.getElementById('progression');
+const drumsSelect = document.getElementById('drums');
 const startButton = document.getElementById('start');
 const stopButton = document.getElementById('stop');
 
@@ -230,6 +232,77 @@ function playStrummingPattern(chord) {
     }
 }
 
+function playDrumBeat() {
+    if (currentDrums === 'off') return;
+
+    const beatDuration = 60 / tempo * 1000; // Duration of one beat in ms
+    const beatInterval = beatDuration / 1000; // Convert to seconds
+
+    // Basic 4/4 drum pattern: kick on 1, snare on 2 and 4
+    for (let beat = 0; beat < beatsPerBar; beat++) {
+        const beatTime = audioContext.currentTime + (beat * beatInterval);
+
+        if (beat === 0) {
+            // Kick drum on beat 1
+            playKick(beatTime);
+        }
+
+        if (beat === 1 || beat === 3) {
+            // Snare drum on beats 2 and 4
+            playSnare(beatTime);
+        }
+    }
+}
+
+function playKick(startTime) {
+    // Simple kick drum using a low-frequency oscillator sweep
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(150, startTime);
+    oscillator.frequency.exponentialRampToValueAtTime(50, startTime + 0.1);
+
+    gainNode.gain.setValueAtTime(0.8, startTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + 0.3);
+}
+
+function playSnare(startTime) {
+    // Simple snare drum using noise with filter
+    const bufferSize = audioContext.sampleRate * 0.2;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const output = buffer.getChannelData(0);
+
+    // Generate white noise
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+
+    const whiteNoise = audioContext.createBufferSource();
+    const gainNode = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+
+    whiteNoise.buffer = buffer;
+    whiteNoise.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(1000, startTime);
+    filter.Q.setValueAtTime(1, startTime);
+
+    gainNode.gain.setValueAtTime(0.6, startTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1);
+
+    whiteNoise.start(startTime);
+    whiteNoise.stop(startTime + 0.1);
+}
+
 function playChord(chord) {
     switch (currentPattern) {
         case 'sustained':
@@ -268,11 +341,16 @@ function updateDisplay() {
 function updateBar() {
     currentBar++;
     barDisplay.textContent = `Bar: ${currentBar}`;
+
+    // Always play the current chord and drums at the start of each bar
+    playChord(chordQueue[0].chord);
+    playDrumBeat();
+
+    // Check if we need to move to the next chord
     if (--chordQueue[0].bars === 0) {
         chordQueue.shift();
         chordQueue.push({ chord: generateChord(), bars: generateDuration() });
         updateDisplay();
-        playChord(chordQueue[0].chord);
     }
 }
 
@@ -295,9 +373,8 @@ function start() {
         { chord: generateChord(), bars: generateDuration() }
     ];
     currentBar = 0;
-    updateBar(); // sets to 1, decrements first bars
+    updateBar(); // sets to 1, decrements first bars and plays first chord
     updateDisplay();
-    playChord(chordQueue[0].chord);
     startBarCounter();
 }
 
@@ -317,6 +394,10 @@ patternSelect.addEventListener('change', (e) => {
 progressionSelect.addEventListener('change', (e) => {
     currentProgression = e.target.value;
     progressionIndex = 0; // Reset progression when changing
+});
+
+drumsSelect.addEventListener('change', (e) => {
+    currentDrums = e.target.value;
 });
 
 startButton.addEventListener('click', start);
