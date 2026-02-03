@@ -21,6 +21,15 @@
             <input type="number" id="tempo" value="120" min="60" max="200">
         </div>
         <div class="control-group">
+            <label for="instrument">Instrument:</label>
+            <select id="instrument">
+                <option value="guitar">Guitar</option>
+                <option value="piano">Piano</option>
+                <option value="organ">Organ</option>
+                <option value="strings">Strings</option>
+            </select>
+        </div>
+        <div class="control-group">
             <label for="pattern">Playing Pattern:</label>
             <select id="pattern">
                 <option value="sustained">Sustained Chord</option>
@@ -28,6 +37,16 @@
                 <option value="arpeggio-down">Arpeggio Down</option>
                 <option value="broken">Broken Chord</option>
                 <option value="strumming">Strumming Pattern</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="progression">Chord Progression:</label>
+            <select id="progression">
+                <option value="random">Random Chords</option>
+                <option value="pop">I-V-vi-IV (Pop)</option>
+                <option value="jazz">ii-V-I (Jazz)</option>
+                <option value="classic">I-IV-V-I (Classic)</option>
+                <option value="sad">vi-IV-I-V (Sad)</option>
             </select>
         </div>
         <div class="buttons">

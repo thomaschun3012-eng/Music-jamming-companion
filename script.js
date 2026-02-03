@@ -1,4 +1,21 @@
 const chords = ['F', 'Bb', 'C', 'Dm', 'Gm', 'Am'];
+const romanNumerals = {
+    'I': 'F',
+    'ii': 'Gm',
+    'iii': 'Am',
+    'IV': 'Bb',
+    'V': 'C',
+    'vi': 'Dm'
+};
+
+const progressions = {
+    'random': null, // Will use random chords
+    'pop': ['I', 'V', 'vi', 'IV'], // I-V-vi-IV
+    'jazz': ['ii', 'V', 'I'], // ii-V-I
+    'classic': ['I', 'IV', 'V', 'I'], // I-IV-V-I
+    'sad': ['vi', 'IV', 'I', 'V'] // vi-IV-I-V
+};
+
 let chordQueue = [];
 let currentBar = 1;
 let beatsPerBar = 4;
@@ -8,17 +25,29 @@ let barDuration = beatsPerBar * beatDuration;
 let isPlaying = false;
 let barIntervalId;
 let currentPattern = 'sustained';
+let currentInstrument = 'guitar';
+let currentProgression = 'random';
+let progressionIndex = 0;
 
 const chordDisplay = document.getElementById('current-chord');
 const barDisplay = document.getElementById('bar');
 const timeSigSelect = document.getElementById('timeSig');
 const tempoInput = document.getElementById('tempo');
+const instrumentSelect = document.getElementById('instrument');
 const patternSelect = document.getElementById('pattern');
+const progressionSelect = document.getElementById('progression');
 const startButton = document.getElementById('start');
 const stopButton = document.getElementById('stop');
 
 function generateChord() {
-    return chords[Math.floor(Math.random() * chords.length)];
+    if (currentProgression !== 'random' && progressions[currentProgression]) {
+        const progression = progressions[currentProgression];
+        const romanNumeral = progression[progressionIndex % progression.length];
+        progressionIndex++;
+        return romanNumerals[romanNumeral];
+    } else {
+        return chords[Math.floor(Math.random() * chords.length)];
+    }
 }
 
 function generateDuration() {
@@ -54,15 +83,58 @@ const chordNotes = {
 function playNote(note, startTime, duration = 0.5) {
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
 
-    oscillator.connect(gainNode);
+    // Set up instrument-specific characteristics
+    switch (currentInstrument) {
+        case 'guitar':
+            oscillator.type = 'square';
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(2000, startTime);
+            filter.Q.setValueAtTime(1, startTime);
+            break;
+        case 'piano':
+            oscillator.type = 'sine';
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(3000, startTime);
+            filter.Q.setValueAtTime(2, startTime);
+            // Piano-like attack/decay envelope
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.1, startTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            break;
+        case 'organ':
+            oscillator.type = 'square';
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1500, startTime);
+            filter.Q.setValueAtTime(0.5, startTime);
+            break;
+        case 'strings':
+            oscillator.type = 'sawtooth';
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(2500, startTime);
+            filter.Q.setValueAtTime(1.5, startTime);
+            // Add some vibrato for strings
+            oscillator.frequency.setValueAtTime(noteFreqs[note] * 2, startTime);
+            oscillator.frequency.linearRampToValueAtTime(noteFreqs[note] * 2 * 1.01, startTime + duration * 0.5);
+            oscillator.frequency.linearRampToValueAtTime(noteFreqs[note] * 2 * 0.99, startTime + duration);
+            break;
+        default:
+            oscillator.type = 'sine';
+    }
+
+    oscillator.connect(filter);
+    filter.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
     oscillator.frequency.setValueAtTime(noteFreqs[note] * 2, startTime);
-    oscillator.type = 'sine';
 
-    gainNode.gain.setValueAtTime(0.15, startTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+    // Default envelope for non-piano instruments
+    if (currentInstrument !== 'piano') {
+        gainNode.gain.setValueAtTime(0.15, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+    }
 
     oscillator.start(startTime);
     oscillator.stop(startTime + duration);
@@ -196,8 +268,17 @@ function stop() {
     clearInterval(barIntervalId);
 }
 
+instrumentSelect.addEventListener('change', (e) => {
+    currentInstrument = e.target.value;
+});
+
 patternSelect.addEventListener('change', (e) => {
     currentPattern = e.target.value;
+});
+
+progressionSelect.addEventListener('change', (e) => {
+    currentProgression = e.target.value;
+    progressionIndex = 0; // Reset progression when changing
 });
 
 startButton.addEventListener('click', start);
